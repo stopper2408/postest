@@ -1,0 +1,217 @@
+<html lang="en">
+
+<head>
+    <title>Manager Interface</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+</head>
+
+<div class="roboto-font">
+
+    <body>
+        <div class="container" style="justify-content: space-between; align-items: center;">
+            <h1>Manager Interface</h1>
+            <a href="/login">
+                <button class="logout">Logout</button>
+            </a>
+        </div>
+
+        <div class="navbar container">
+            <button onclick="addItemsToTheMenu()">Add Items to Menu</button>
+            <button onclick="viewAndDeleteItems()">View and Delete Items</button>
+            <button onclick="configureTables()">Configure Tables</button>
+        </div>
+
+        <div id="items-adder" class="add-items-to-menu container">
+            <!-- This is where the div stuff is added in js for nav bar-->
+        </div>
+        <div id='menu-items-grid' class="menuGrid container">
+            <!-- This is where the div stuff is added in js for nav bar-->
+        </div>
+        <div id='item-configure' class="itemConfigure container">
+            <!-- This is where the div stuff is added in js for nav bar-->
+        </div>
+
+    </body>
+</div>
+
+<script>
+
+    function submitNewItem() {
+        const itemName = document.getElementById('itemName').value;
+        const itemPrice = document.getElementById('itemPrice').value;
+        const itemCategory = document.getElementById('item-category').value;
+        const itemSubcategory = document.getElementById('item-Subcategory').value;
+
+        if (document.getElementById('main-away').value == "Yes") {
+            var mainAway = true;
+        } else {
+            var mainAway = false;
+        }
+
+        if (document.getElementById('place_to_go').value == "Kitchen") {
+            var placeToGo = "kitchen";
+        } else {
+            var placeToGo = "bar";
+        }
+
+        fetch('/manager/add_menu_item?name=' + itemName + '&price=' + itemPrice + '&category=' + itemCategory + '&subcategory=' + itemSubcategory + '&need_to_be_main_away=' + mainAway + '&place_to_go=' + placeToGo)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addItemsToTheMenu();
+                } else {
+                    console.log('error adding the items');
+                }
+            })
+    }
+
+
+    function addItemsToTheMenu() {
+        const itemsAddingBox = document.getElementById('items-adder');
+        itemsAddingBox.innerHTML = `
+            <div class="add-item roboto-font">
+                <h2>Add Item to Menu</h2>
+                <input type="text" id="itemName" placeholder="Item Name">
+                <input type="number" id="itemPrice" placeholder="Item Price">
+                <input type="text" id="item-category" placeholder="Item Category">
+                <input type="text" id="item-Subcategory" placeholder="Item Subcategory">
+                <select id="main-away">
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                </select>
+                <select id="place_to_go">
+                    <option value="Kitchen">Kitchen</option>
+                    <option value="Bar">Bar</option>
+                </select>
+                <button onclick="submitNewItem()">Add Item</button>
+            </div>
+        `;
+        document.body.appendChild(itemsAddingBox);
+    }
+
+    function viewAndDeleteItems() {
+        fetch('/checker/menu_items/')
+            .then(response => response.json())
+            .then(menuItems => {
+                const menuGrid = document.getElementById('menu-items-grid');
+                menuGrid.innerHTML = '';
+                menuItems.forEach(item => {
+                    const newBox = document.createElement('div');
+                    newBox.classList.add('menu-item-box');
+                    newBox.innerHTML = `
+                        <h3 class="item-name">`+ item.name + `</h3>
+                        <div class="item-footer">
+                            <p class="item-price-menu">£`+ item.price.toFixed(2) + `</p>
+                            <button onclick="deleteMenuItem(` + item.id + `)" class="delete-button">Delete</button>
+                        </div>`;
+                    menuGrid.appendChild(newBox);
+                });
+            });
+    }
+
+    function deleteMenuItem(itemId) {
+        fetch('manager/delete_menu_item/' + itemId)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    console.log('Error when deleting the item');
+                }
+            });
+    }
+
+
+    function configureTables() {
+
+        const itemConfigure = document.getElementById('item-configure');
+        itemConfigure.innerHTML = `
+            <div class="configure-tables roboto-font">
+                <h2>Configure Tables</h2>
+                <input type="number" id="tableNumber" placeholder="How many tables do you want to have?">
+                <button onclick="submitTableConfiguration()">Submit</button>
+            </div>`
+    }
+
+    function submitTableConfiguration() {
+        const tableNumber = document.getElementById('tableNumber').value;
+
+        if (confirm("This will reset all tables and orders. Do you want to continue?") == false) {
+            console.log("Cancelled");
+            return;
+        }
+
+        fetch('/manager/number_of_tables/' + tableNumber)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    console.log('Error setting the number of tables');
+                }
+            });
+    }
+</script>
+
+
+
+<style>
+    .container {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    .logout {
+        margin-left: auto;
+        padding: 10px 20px;
+        background-color: #464b53;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: 0.2s;
+    }
+
+    .logout:hover {
+        background-color: #2f333a;
+        transform: translateY(-3px) scale(1.03);
+        box-shadow: #2f333a 4px 4px 10px;
+    }
+
+
+    .roboto-font {
+        font-family: "Roboto", sans-serif;
+        font-optical-sizing: auto;
+        font-weight: 400;
+        font-style: normal;
+        font-variation-settings:
+            "wdth" 100;
+    }
+
+    .navbar button {
+        padding: 10px 20px;
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rm;
+        transition: 0.2s;
+        margin: 5px;
+    }
+
+    .navbar button:hover {
+        background-color: #2f333a;
+        transform: translateY(-3px) scale(1.03);
+        box-shadow: #2f333a 4px 4px 10px;
+    }
+</style>
+
+</html>

@@ -1,0 +1,223 @@
+<html lang="en">
+
+<head>
+    <title>Waiter Table View</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+</head>
+
+<div class="roboto-font">
+    <div>
+        <div class="container" style="justify-content: space-between; align-items: center;">
+            <h1>Tables</h1>
+            <a href="/login">
+                <button class="logout">Logout</button>
+            </a>
+        </div>
+        <div class="container" id="boxContainer">
+        </div>
+    </div>
+</div>
+
+
+<script>
+    const boxContainer = document.getElementById('boxContainer');
+    function buttonYes(tableID) {
+        fetch('checker/tables/' + tableID)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status == false) {
+                    window.location.href = '/table_view/' + tableID;
+                } else if (data.status == true) {
+                    console.log("Opening table " + tableID + " has failed, this is because the table is already taken");
+                } else {
+                    console.log("There was an unexpected error when trying to open this table")
+                }
+            });
+    }
+    function buttonNo(tableID) {
+        console.log("Cancelled opening table for table " + tableID);
+        refreshTables(tableID);
+    }
+    function createTableBox(i) {
+        const newBox = document.createElement('div');
+        newBox.classList.add('box');
+        newBox.id = i;
+        newBox.classList.add('tableNumber' + i);
+        newBox.innerHTML = `Table` + i + `<br>This table is loading;`
+        newBox.addEventListener('click', function () {
+            if (newBox.classList.contains('not-available')) {
+                newBox.classList.add('is-confirming-now');
+                newBox.innerHTML = `<div class="confirmation-popup">
+                                        <h2>Would you like to open a new table?</h2>
+                                        <button class="confirm-button" onclick="buttonYes(` + i + `)">Yes</button>
+                                        <button class="confirm-button" onclick="buttonNo(` + i + `)">No</button>
+                                    </div>`
+            } else if (newBox.classList.contains('available')) {
+                window.location.href = '/table_view/' + i;
+            } else {
+                console.log("Error in table pop up");
+            }
+        });
+        boxContainer.appendChild(newBox);
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+        fetch('/checker/total_number_of_tables')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const tableCount = data.number_of_tables;
+                    for (let i = 1; i <= tableCount; i++) {
+                        createTableBox(i);
+                    }
+                    refreshTables(0); // this is the origional call of the function to input all the stuff in the tables
+                } else {
+                    console.log("Error with getting number of tables");
+                }
+            });
+    });
+    function refreshTables(tableID) { // 0 refreshes all tables, or specify a tableID to refresh only that one
+        if (tableID === 0) {
+            fetch('/checker/tables/')
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(table => {
+                        const boxToUpdate = document.querySelector('.tableNumber' + table.id);
+                        if (boxToUpdate.classList.contains('is-confirming-now')) {
+                            return; // This will prevent updating the table if the pop up window is open
+                        } else if (table.status == false) {
+                            boxToUpdate.innerHTML = 'Table ' + table.id + '<br>This table has ' + table.guests + ' guests<br>This table is not occupied';
+                            boxToUpdate.classList.add('not-available');
+                            boxToUpdate.classList.remove('available');
+                        } else if (table.status == true) { //false is when it is not occupied and true is when it is occupied
+                            boxToUpdate.innerHTML = 'Table ' + table.id + '<br>This table has ' + table.guests + ' guests<br>This table is occupied';
+                            boxToUpdate.classList.add('available');
+                            boxToUpdate.classList.remove('not-available');
+                        }
+                        else {
+                            boxToUpdate.innerHTML = 'Table ' + table.id + '<br>Table is not responding';
+                        }
+                    });
+                })
+        }
+        else if (tableID > 0) {
+            const boxToUpdate = document.querySelector('.tableNumber' + tableID);
+            fetch('/checker/tables/' + tableID)
+                .then(response => response.json())
+                .then(data => {
+                    boxToUpdate.classList.remove('is-confirming-now');
+                    if (data.status == false) {
+                        boxToUpdate.innerHTML = 'Table ' + tableID + '<br>This table has ' + data.guests + ' guests<br>This table is not occupied';
+                        boxToUpdate.classList.add('not-available');
+                        boxToUpdate.classList.remove('available');
+                    } else if (data.status == true) { //false is when it is not occupied and true is when it is occupied
+                        boxToUpdate.innerHTML = 'Table ' + tableID + '<br>This table has ' + data.guests + ' guests<br>This table is occupied';
+                        boxToUpdate.classList.add('available');
+                        boxToUpdate.classList.remove('not-available');
+                    }
+                    else {
+                        boxToUpdate.innerHTML = 'Table ' + tableID + '<br>Table is not responding';
+                    }
+                })
+        }
+    }
+    function tableSetup() {
+        console.log("tablesetup");
+    }
+    setInterval(function () {
+        refreshTables(0);
+    }, 10000);
+</script>
+
+<style>
+    .container {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    .box {
+        min-width: 400px;
+        flex-grow: 1;
+        flex-shrink: 0;
+        flex-basis: 0;
+        height: 200px;
+        background-color: #6B7280;
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 5px;
+        font-size: 1.2em;
+        font-weight: bold;
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+        text-align: center;
+        flex-direction: column;
+        cursor: pointer;
+        transition-duration: 0.2s;
+    }
+
+    .box:hover {
+        opacity: 0.9;
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: #2f333a 4px 4px 10px;
+    }
+
+    .logout {
+        margin-left: auto;
+        padding: 10px 20px;
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rm;
+        transition-duration: 0.2s;
+    }
+
+    .logout:hover {
+        background-color: #2f333a;
+        transform: translateY(-3px) scale(1.03);
+        box-shadow: #2f333a 4px 4px 10px;
+    }
+
+    .box.available {
+        background-color: #5cb85c;
+    }
+
+    .box.not-available {
+        background-color: #d9534f;
+    }
+
+    .roboto-font {
+        font-family: "Roboto", sans-serif;
+        font-optical-sizing: auto;
+        font-weight: 400;
+        font-style: normal;
+        font-variation-settings:
+            "wdth" 100;
+    }
+
+    .confirm-button {
+        margin: 10px;
+        padding: 10px 20px;
+        background-color: #ffffff;
+        color: #000000;
+        border: 2px solid #000000;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: background-color 0.2s, color 0.2s;
+    }
+
+    .confirm-button:hover {
+        background-color: #000000;
+        color: #ffffff;
+    }
+</style>
+
+</html>

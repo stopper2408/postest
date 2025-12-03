@@ -1,0 +1,162 @@
+<html lang="en">
+
+<head>
+    <title>Bar View</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+</head>
+
+<div class="roboto-font">
+    <div class="container" style="justify-content: space-between; align-items: center;">
+        <h1>Bar View</h1>
+        <a href="/login">
+            <button class="logout">Logout</button>
+        </a>
+    </div>
+    <div class="container" id="boxContainer">
+        <p>Need to add the orders coming through</p>
+    </div>
+</div>
+
+
+<script>
+    function createOrdersView(i) {
+        fetch('/checker/orders/bar')
+            .then(response => response.json())
+            .then(data => {
+                const boxContainer = document.getElementById('boxContainer');
+                boxContainer.innerHTML = "";
+                data.forEach(order => {
+                    const box = document.createElement('div');
+                    box.classList.add('box');
+                    if (order.status == 0) {
+                        box.classList.add('pending-order');
+                    } else if (order.status == 1) {
+                        box.classList.add('main-awayed-order');
+                    } else if (order.status == 2) {
+                        box.classList.add('completed-order');
+                    }
+                    box.innerHTML = `
+                                            Table   `+ order.tableID + ` <br>
+                                            Item: `+ order.name + ` <br>
+                                            Item: `+ order.quantityOfOrder + ` <br>
+                                            Status: `+ order.status + ` <br>
+                                            <button class="finish-button" onclick="complete_order(`+ order.id + `)">Mark as Done</button>
+                                        `
+                    boxContainer.appendChild(box);
+                });
+            });
+    }
+
+    function complete_order(orderID) { // this is the function which will mark a item as completed b ythe bar/kitchen (this will be copied and pasted)
+        fetch('/complete_order/' + orderID)
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.success)
+                if (data.success) {
+                    createOrdersView();
+                } else {
+                    console.log("Error in the complete_order function")
+                }
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        createOrdersView();
+        setInterval(createOrdersView, 10000);
+    });
+</script>
+<style>
+    .container {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    .logout {
+        margin-left: auto;
+        padding: 10px 20px;
+        background-color: #464b53;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: 0.2s;
+    }
+
+    .logout:hover {
+        background-color: #2f333a;
+        transform: translateY(-3px) scale(1.03);
+        box-shadow: #2f333a 4px 4px 10px;
+    }
+
+    .roboto-font {
+        font-family: "Roboto", sans-serif;
+        font-optical-sizing: auto;
+        font-weight: 400;
+        font-style: normal;
+        font-variation-settings:
+            "wdth" 100;
+    }
+
+    .box {
+        min-width: 400px;
+        flex-grow: 1;
+        flex-shrink: 0;
+        flex-basis: 0;
+        height: 200px;
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 5px;
+        font-size: 1.2em;
+        font-weight: bold;
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+        text-align: center;
+        flex-direction: column;
+        transition-duration: 0.2s;
+    }
+
+    .box:hover {
+        opacity: 0.7;
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: #2f333a 4px 4px 10px;
+    }
+
+    .pending-order {
+        background-color: #f0ad4e;
+        border-radius: 5px;
+
+    }
+
+    .main-awayed-order {
+        background-color: #5bc0de;
+        border-radius: 5px;
+
+    }
+
+    .completed-order {
+        background-color: #5cb85c;
+        border-radius: 5px;
+    }
+
+    .finish-button {
+        margin-top: 10px;
+        padding: 10px 20px;
+        background-color: #464b53;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: background-color 0.2s;
+    }
+</style>
+
+</html>
