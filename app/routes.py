@@ -28,21 +28,25 @@ def waiter_table_view():
 
 @app.route('/kitchen')
 def kitchen():
-    return render_template('kitchen.html')
+    return render_template('kitchen_new.html')
 
 
 @app.route('/bar')
 def bar():
-    return render_template('bar.html')
+    return render_template('bar_new.html')
 
 
 @app.route('/table_view/<int:tableNumber>')
 def table_view(tableNumber):
-    return render_template('table_view.html', tableNumber=tableNumber)
+    return render_template('table_view_new.html', tableNumber=tableNumber)
 
 @app.route('/manager_interface')
 def manager_interface():
     return render_template('manager_interface.html')
+
+@app.route('/settings')
+def settings():
+    return render_template('settings.html')
 
 
 

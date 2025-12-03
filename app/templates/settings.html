@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - PoS System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Sticky Navigation -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <h1 style="margin: 0;">⚙️ Settings</h1>
+            <a href="/manager_interface" style="text-decoration: none;">
+                <button class="btn btn-secondary btn-sm">← Back to Manager</button>
+            </a>
+        </div>
+    </nav>
+
+    <div class="container" style="max-width: 800px; margin: 2rem auto;">
+        <!-- PIN Setup Card -->
+        <div class="card mb-lg">
+            <div class="card-header">
+                <h2>Security Settings</h2>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label class="form-label">Master PIN</label>
+                    <p style="color: #64748B; font-size: 0.875rem; margin-bottom: 0.5rem;">
+                        Set a master PIN for accessing protected features. Leave blank if already set.
+                    </p>
+                    <input type="password" id="master-pin" class="form-input" placeholder="Enter new PIN" maxlength="6">
+                </div>
+                
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="require-pin-void" class="form-checkbox">
+                        <span style="margin-left: 0.5rem;">Require PIN for voiding orders</span>
+                    </label>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveSecuritySettings()">Save Security Settings</button>
+            </div>
+        </div>
+
+        <!-- Feature Settings Card -->
+        <div class="card mb-lg">
+            <div class="card-header">
+                <h2>Feature Settings</h2>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="enable-seat-selection" class="form-checkbox">
+                        <span style="margin-left: 0.5rem;">Enable seat assignment for orders</span>
+                    </label>
+                    <p style="color: #64748B; font-size: 0.875rem; margin: 0.5rem 0 0 1.75rem;">
+                        Allows waiters to assign specific seats to menu items
+                    </p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Floor Plan Mode</label>
+                    <select id="floor-plan-mode" class="form-select">
+                        <option value="basic">Basic - Simple grid of tables</option>
+                        <option value="detailed">Detailed - Visual floor plan (Coming Soon)</option>
+                        <option value="status">Status - Breathing indicators only</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveFeatureSettings()">Save Feature Settings</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Statistics -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Dashboard Statistics</h2>
+            </div>
+            <div class="card-body">
+                <div class="grid grid-cols-3 gap-md">
+                    <div class="card" style="text-align: center; background: var(--bg-accent);">
+                        <div id="open-tables" class="number" style="font-size: 2.5rem; color: var(--indigo-primary);">-</div>
+                        <div style="color: #64748B;">Open Tables</div>
+                    </div>
+                    <div class="card" style="text-align: center; background: var(--bg-accent);">
+                        <div id="total-revenue" class="price" style="font-size: 2.5rem; color: var(--success);">-</div>
+                        <div style="color: #64748B;">Today's Revenue</div>
+                    </div>
+                    <div class="card" style="text-align: center; background: var(--bg-accent);">
+                        <div id="pending-orders" class="number" style="font-size: 2.5rem; color: var(--warning);">-</div>
+                        <div style="color: #64748B;">Pending Orders</div>
+                    </div>
+                </div>
+                <button class="btn btn-secondary w-full mt-md" onclick="loadStats()">Refresh Statistics</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PIN Verification Modal -->
+    <div id="pin-modal" class="modal-backdrop" style="display: none;">
+        <div class="modal">
+            <h2>Enter PIN</h2>
+            <p style="color: #64748B; margin: 1rem 0;">This action requires PIN verification</p>
+            <div class="form-group">
+                <input type="password" id="pin-verify" class="form-input" placeholder="Enter PIN" maxlength="6" autofocus>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-primary" onclick="verifyPIN()">Verify</button>
+                <button class="btn btn-secondary" onclick="closePINModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isAuthenticated = false;
+
+        // Check if PIN verification is needed on load
+        async function checkAuth() {
+            try {
+                const response = await fetch('/settings/get/master_pin');
+                const data = await response.json();
+                
+                if (data.success && data.value) {
+                    // PIN is set, require verification
+                    document.getElementById('pin-modal').style.display = 'flex';
+                } else {
+                    // No PIN set, show first-time setup notice
+                    isAuthenticated = true;
+                    showNotification('Welcome! Please set up a master PIN for security.', 'info');
+                }
+            } catch (error) {
+                console.error('Failed to check auth:', error);
+            }
+        }
+
+        async function verifyPIN() {
+            const pin = document.getElementById('pin-verify').value;
+            
+            if (!pin) {
+                showNotification('Please enter a PIN', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch('/auth/verify_pin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    isAuthenticated = true;
+                    closePINModal();
+                    showNotification('Access granted', 'success');
+                    loadSettings();
+                    loadStats();
+                } else {
+                    showNotification('Invalid PIN', 'danger');
+                }
+            } catch (error) {
+                showNotification('Network error: ' + error.message, 'danger');
+            }
+        }
+
+        function closePINModal() {
+            document.getElementById('pin-modal').style.display = 'none';
+        }
+
+        async function loadSettings() {
+            try {
+                const response = await fetch('/settings/all');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const settings = data.settings;
+                    
+                    // Load feature settings
+                    if (settings.enable_seat_selection === 'true') {
+                        document.getElementById('enable-seat-selection').checked = true;
+                    }
+                    
+                    if (settings.require_pin_for_void === 'true') {
+                        document.getElementById('require-pin-void').checked = true;
+                    }
+                    
+                    if (settings.floor_plan_mode) {
+                        document.getElementById('floor-plan-mode').value = settings.floor_plan_mode;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+            }
+        }
+
+        async function saveSecuritySettings() {
+            const pin = document.getElementById('master-pin').value;
+            const requirePinVoid = document.getElementById('require-pin-void').checked;
+
+            try {
+                // Save PIN if provided
+                if (pin) {
+                    const pinResponse = await fetch('/auth/setup_pin', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pin })
+                    });
+                    const pinData = await pinResponse.json();
+                    
+                    if (!pinData.success && pinData.error !== 'PIN already set') {
+                        showNotification('Failed to set PIN: ' + pinData.error, 'danger');
+                        return;
+                    }
+                    
+                    if (pinData.success) {
+                        showNotification('Master PIN set successfully', 'success');
+                        document.getElementById('master-pin').value = '';
+                    }
+                }
+
+                // Save void PIN requirement
+                await fetch('/settings/set', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        key: 'require_pin_for_void',
+                        value: requirePinVoid ? 'true' : 'false'
+                    })
+                });
+
+                showNotification('Security settings saved', 'success');
+            } catch (error) {
+                showNotification('Failed to save settings: ' + error.message, 'danger');
+            }
+        }
+
+        async function saveFeatureSettings() {
+            const seatSelection = document.getElementById('enable-seat-selection').checked;
+            const floorPlanMode = document.getElementById('floor-plan-mode').value;
+
+            try {
+                await fetch('/settings/set', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        key: 'enable_seat_selection',
+                        value: seatSelection ? 'true' : 'false'
+                    })
+                });
+
+                await fetch('/settings/set', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        key: 'floor_plan_mode',
+                        value: floorPlanMode
+                    })
+                });
+
+                showNotification('Feature settings saved', 'success');
+            } catch (error) {
+                showNotification('Failed to save settings: ' + error.message, 'danger');
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/dashboard/stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('open-tables').textContent = data.open_tables;
+                    document.getElementById('total-revenue').textContent = '$' + data.total_revenue.toFixed(2);
+                    document.getElementById('pending-orders').textContent = data.pending_orders;
+                }
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                padding: 1rem 1.5rem;
+                background: white;
+                border-radius: var(--radius-lg);
+                box-shadow: var(--shadow-xl);
+                z-index: 9999;
+                animation: slideInRight 0.3s ease-out;
+            `;
+
+            let color = 'var(--info)';
+            if (type === 'success') color = 'var(--success)';
+            else if (type === 'warning') color = 'var(--warning)';
+            else if (type === 'danger') color = 'var(--danger)';
+
+            notification.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div style="width: 4px; height: 40px; background: ${color}; border-radius: 2px;"></div>
+                    <div>${message}</div>
+                </div>
+            `;
+
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease-out';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', checkAuth);
+    </script>
+</body>
+</html>
