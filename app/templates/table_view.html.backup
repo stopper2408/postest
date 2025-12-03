@@ -1,0 +1,538 @@
+<html>
+
+<head>
+    <title>Table {{ tableNumber }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+</head>
+
+<div class="roboto-font" style="padding-bottom: 60px; padding:8px">
+    <div class="container" style="justify-content: space-between; align-items: center;">
+        <h1>Table {{ tableNumber }}</h1>
+        <a href="/waiter_table_view">
+            <button class="logout">Back</button>
+        </a>
+    </div>
+    <div id="categories-bar" class="categories-bar container" style="width: calc(75% - 60px);">
+        <!-- This is where the div stuff is added in js for nav bar-->
+    </div>
+    <div class="main-content">
+        <div id="menu-items-grid" class="menu-items-grid container" style="width: calc(75% - 50px);">
+            <!-- This is where the div stuff is added in js -->
+        </div>
+
+        <div id="current-orders" class="current-orders container"
+            style="width: calc(25% - 50px); padding-bottom: 60px;">
+            <!-- This is where the div stuff is added in js -->
+        </div>
+    </div>
+</div>
+
+<div class="navbar" style="bottom:0; width: 100%;">
+    <button onclick="closeTable()">Close Table</button>
+    <button onclick="mainAway()">Main Away</button>
+    <button>Checkout</button>
+</div>
+
+
+</html>
+
+<script>
+    const tableNumber = {{ tableNumber }};
+
+    function askForNumberOfGuests() {
+        const guestsAtTable = document.createElement('div');
+        guestsAtTable.classList.add('overlay');
+        guestsAtTable.innerHTML = `
+            <div class="numberOfGuestsHTMLPrompt roboto-font">
+                <h2>Please enter the number of guests at this table:</h2>
+                <input type="number" id="guestsAtTableInput" min="1" max="99" class="numberInput" />
+                <button id="submit-guests" class="numberInputButton" onclick="submitGuests()">Submit</button>
+            </div>
+        `;
+        document.body.appendChild(guestsAtTable);
+    }
+
+
+    function submitGuests() {
+        const guestsInput = document.getElementById('guestsAtTableInput');
+        const numberOfGuests = parseInt(guestsInput.value);
+
+        if (isNaN(numberOfGuests) || (numberOfGuests <= 0 || numberOfGuests >= 100) || !Number.isInteger(numberOfGuests)) {
+            alert("Error");
+        } else {
+            fetch('/modify_table/' + tableNumber + '?numberOfGuests=' + numberOfGuests)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload(); // reload it to show it updated
+                    } else {
+                        console.log("Error adding guests to table");
+                    }
+                });
+        }
+    }
+
+
+    function closeTable() {
+        if (confirm("Are you sure you want to close this table?")) {
+            fetch('/close_table/' + tableNumber)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '/waiter_table_view';
+                    } else {
+                        console.log("Something went wrong with the table closing")
+                    }
+                });
+        } else {
+            return;
+        }
+    }
+
+
+
+    function returnSubcategoryItems(subcategory) {
+        fetch('/checker/menu_items/')
+            .then(response => response.json())
+            .then(menuItems => {
+                const listOfItems = new Set();
+                menuItems.forEach((item, i) => {
+                    if (item.subcategory == subcategory) {
+                        listOfItems.add(item);
+                    }
+                });
+                listOfItems.forEach(item => {
+                    const subcategoryGrid = document.getElementById('subcategory-items-grid');
+                    const newBox = document.createElement('div');
+                    newBox.classList.add('menu-item-box');
+                    newBox.innerHTML = `
+                        <h3 class="item-name">`+ item.name + `</h3>
+                        <div class="item-footer">
+                            <p class="item-price-menu">£`+ item.price.toFixed(2) + `</p>
+                            <button onclick="addOrderItem(` + item.id + `)" class="add-button">Add</button>
+                        </div>
+                    `;
+                    subcategoryGrid.appendChild(newBox);
+                    });
+            });
+    }
+
+
+    function viewSubcategory(subcategory) {
+        const categorySelectorMenu = document.createElement('div');
+        categorySelectorMenu.classList.add('overlay');
+        categorySelectorMenu.innerHTML = `
+            <div class="itemSubcategorySelector roboto-font">
+                <h2>` + subcategory + `</h2>
+                <button onclick="document.body.removeChild(this.parentElement.parentElement)" class="numberInputButton logout">Close</button>
+                <div id="subcategory-items-grid" class="menu-items-grid container">
+                    <!-- This is where the subcatergory items should be added -->
+            </div>`;
+        document.body.appendChild(categorySelectorMenu);
+        returnSubcategoryItems(subcategory);
+        }
+
+    function fetchMenu(category) {
+        fetch('/checker/menu_items/')
+            .then(response => response.json())
+            .then(menuItems => {
+                const menuGrid = document.getElementById('menu-items-grid');
+
+                const subcategorySeperator = new Set();
+
+                menuGrid.innerHTML = '';
+                menuItems.forEach((item, i) => {
+                    subcategorySeperator.add(item.subcategory);
+                });
+
+                console.log(subcategorySeperator);
+
+                const completedSubcategories = new Set();
+                menuItems.forEach((item, i) => {
+
+                    if (item.subcategory != null) {
+                        if (completedSubcategories.has(item.subcategory) == false && category == "All") {
+                            const subcategoryHeader = document.createElement('div');
+                            subcategoryHeader.classList.add('menu-item-box');
+                            subcategoryHeader.innerHTML = `
+                                <h3 class="item-name">` + item.subcategory + `</h3>
+                                <div class="item-footer">
+                                    <button onclick="viewSubcategory('` + item.subcategory + `')" class="add-button">View Contents</button>
+                                </div>
+                            `;
+                            menuGrid.appendChild(subcategoryHeader);
+                            completedSubcategories.add(item.subcategory);
+                        }
+                        else if (completedSubcategories.has(item.subcategory) == false && item.category == category) {
+                            const subcategoryHeader = document.createElement('div');
+                            subcategoryHeader.classList.add('menu-item-box');
+                            subcategoryHeader.innerHTML = `
+                                <h3 class="item-name">` + item.subcategory + `</h3>
+                                <div class="item-footer">
+                                    <button onclick="viewSubcategory('` + item.subcategory + `')" class="add-button">View Contents</button>
+                                </div>
+                            `;
+                            menuGrid.appendChild(subcategoryHeader);
+                            completedSubcategories.add(item.subcategory);
+                        }
+                    }
+
+                    else if (item.category == category) {
+                        const newBox = document.createElement('div');
+                        newBox.classList.add('menu-item-box');
+                        newBox.innerHTML = `
+                            <h3 class="item-name">`+ item.name + `</h3>
+                            <div class="item-footer">
+                                <p class="item-price-menu">£`+ item.price.toFixed(2) + `</p>
+                                <button onclick="addOrderItem(` + item.id + `)" class="add-button">Add</button>
+                            </div>
+                        `;
+                        menuGrid.appendChild(newBox);
+                    } else if (category == "All") {
+                        const newBox = document.createElement('div');
+                        newBox.classList.add('menu-item-box');
+                        newBox.innerHTML = `
+                            <h3 class="item-name">`+ item.name + `</h3>
+                            <div class="item-footer">
+                                <p class="item-price-menu">£`+ item.price.toFixed(2) + `</p>
+                                <button onclick="addOrderItem(` + item.id + `)" class="add-button">Add</button>
+                            </div>
+                        `;
+                        menuGrid.appendChild(newBox);
+                    }
+                });
+            });
+    }
+
+    function menuNavBar() {
+        fetch('/checker/menu_items/')
+            .then(response => response.json())
+            .then(menuItems => {
+                const eachCategory = new Set();
+                eachCategory.add("All");
+                menuItems.forEach(item => {
+                    eachCategory.add(item.category);
+                });
+                const categoriesBar = document.getElementById('categories-bar');
+                categoriesBar.innerHTML = '';
+                eachCategory.forEach(category => {
+                    const categoryButton = document.createElement('button');
+                    categoryButton.innerText = category;
+                    categoryButton.classList.add('category-button');
+
+                    categoryButton.onclick = function () {
+                        const menuGrid = document.getElementById('menu-items-grid');
+                        menuGrid.innerHTML = '';
+                        while (menuGrid.children.length > 0) {
+                            menuGrid.removeChild(menuGrid.lastChild);
+                        }
+
+                        menuItems.forEach(item => {
+                            if (category == "All") {
+                                fetchMenu("All");
+                            }
+                            else if (item.category == category) {
+                                fetchMenu(category);
+                            }
+                        })
+                    };
+                    categoriesBar.appendChild(categoryButton);
+                });
+            });
+    };
+
+    function fetchCurrentOrders() {
+        fetch('/checker/orders/' + tableNumber)
+            .then(response => response.json())
+            .then(orders => {
+                const ordersContainer = document.getElementById('current-orders');
+                while (ordersContainer.children.length > 0) {
+                    ordersContainer.removeChild(ordersContainer.lastChild);
+                }
+
+
+                const totalOfItems = {};
+                orders.forEach(order => {
+                    if (totalOfItems[order.item_name]) {
+                        totalOfItems[order.item_name].quantity += order.quantity;
+                    } else {
+                        totalOfItems[order.item_name] = {
+                            item_name: order.item_name,
+                            quantity: order.quantity,
+                            price: order.price
+                        };
+                    }
+                });
+                Object.values(totalOfItems).forEach(order => {
+                    const orderBox = document.createElement('div');
+                    orderBox.classList.add('order-item-box'); // Using a different class for styling if needed
+                    orderBox.innerHTML = `
+                        <span class="item-quantity">x`+ order.quantity + `</span>
+                        <span class="item-name">`+ order.item_name + `</span>
+                        <span class="item-price">£`+ (order.quantity * order.price).toFixed(2) + `</span>
+                    `;
+                    ordersContainer.appendChild(orderBox);
+                });
+                const orderBox = document.createElement('div');
+                orderBox.classList.add('order-item-box'); // Using a different class for styling if needed
+                orderBox.innerHTML = `
+                    <span class="item-quantity">Total:</span>` +
+                    `<span class="">£` + orders.reduce((total, order) => total + (order.price * order.quantity), 0).toFixed(2) + `</span>`;
+                ordersContainer.appendChild(orderBox);
+            });
+    }
+
+    function addOrderItem(itemID) {
+        console.log("called")
+        fetch('/add_order/' + tableNumber + '?itemId=' + itemID + '&quantity=1')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    fetchCurrentOrders();
+                } else {
+                    console.log("Error with the add order item");
+                }
+            });
+    }
+
+    function mainAway() {
+        fetch('/main_away_order/' + tableNumber)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log("Main away was sucessful");
+                } else {
+                    console.log("There was an error with the main away function");
+                }
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        fetch('/checker/tables/' + tableNumber)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status == false) {
+                    askForNumberOfGuests();
+                } else if (data.status == true) { //false is when it is not occupied and true is when it is occupied
+                    menuNavBar();
+                    fetchMenu("All");
+                    fetchCurrentOrders();
+                }
+                else {
+                    console.log('Error in checking');
+                }
+            })
+    });
+
+</script>
+
+
+<style>
+    .container {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    .logout {
+        margin-left: auto;
+        padding: 10px 20px;
+        background-color: #464b53;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rm;
+        transition: background-color 0.2s;
+    }
+
+    .logout:hover {
+        background-color: #2f333a;
+    }
+
+    .roboto-font {
+        font-family: "Roboto", sans-serif;
+        font-optical-sizing: auto;
+        font-weight: 400;
+        font-style: normal;
+        font-variation-settings:
+            "wdth" 100;
+    }
+
+    body {
+        margin: 0px;
+    }
+
+    .navbar {
+        background-color: #333;
+        overflow: hidden;
+        position: fixed;
+        z-index: 1000;
+        display: flex;
+        padding: 5px 15px;
+    }
+
+    .navbar button {
+        padding: 10px 20px;
+        background-color: #464b53;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: background-color 0.2s;
+        margin: 5px;
+    }
+
+    .navbar button:hover {
+        background-color: #2f333a;
+    }
+
+    .menu-item-box {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 15px;
+        width: 150px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .item-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 10px;
+    }
+
+    .add-button {
+        padding: 10px 20px;
+        background-color: #464b53;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: background-color 0.2s;
+        margin: 5px;
+    }
+
+    .add-button:hover {
+        background-color: #45a049;
+    }
+
+    .category-button {
+        padding: 10px 20px;
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rm;
+        transition: background-color 0.2s;
+        margin: 5px;
+    }
+
+    .category-button:hover {
+        background-color: #2f333a;
+    }
+
+
+    .overlay {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1100;
+    }
+
+    .numberOfGuestsHTMLPrompt {
+        background-color: #fff;
+        padding: 30px;
+        border: 2px solid #ccc;
+        border-radius: 8px;
+        text-align: center;
+        width: 100%;
+        max-width: 450px;
+    }
+
+    .numberInput {
+        padding: 10px;
+        font-size: 1rem;
+        width: 100%;
+        margin-top: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    .numberInputButton {
+        padding: 10px 20px;
+        background-color: #464b53;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: background-color 0.2s;
+        margin-top: 15px;
+    }
+
+    .primary-button:hover {
+        background-color: #2f333a;
+    }
+
+
+
+    .item-quantity {
+        font-weight: 700;
+        width: 40px;
+        text-align: left;
+    }
+
+    .item-name {
+        flex: 1;
+    }
+
+    .item-price {
+        font-weight: 600;
+        min-width: 60px;
+        text-align: right;
+    }
+
+    .main-content {
+        display: flex;
+        gap: 15px;
+        padding: 20px;
+        flex-wrap: nowrap;
+        align-items: flex-start;
+    }
+
+    .order-item-box {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        /* without this it will not go throughout the whole container box*/
+        gap: 10px;
+        width: 100%;
+        padding: 8px 12px;
+        border-bottom: 1px solid #949494;
+        /* this is the line between orders which makes it look nicer*/
+    }
+
+    .itemSubcategorySelector {
+        background-color: #fff;
+        padding: 30px;
+        border: 2px solid #ccc;
+        border-radius: 8px;
+        text-align: center;
+        width: 100%;
+        max-width: 450px;
+    }
+</style>

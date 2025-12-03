@@ -1,1 +1,11 @@
 app/__pycache__/
+__pycache__/
+*.pyc
+*.pyo
+*.db-shm
+*.db-wal
+venv/
+.env
+.vscode/
+.idea/
+*.log
