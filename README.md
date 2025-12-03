@@ -77,6 +77,13 @@ python migrate_database.py
 ```
 
 4. **Start the application**
+
+**Development mode** (with debugging):
+```bash
+FLASK_DEBUG=1 python run.py
+```
+
+**Production mode** (recommended for deployment):
 ```bash
 python run.py
 ```
@@ -84,6 +91,8 @@ python run.py
 The application will be available at:
 - Local: `http://127.0.0.1:5000`
 - Network: `http://<your-ip>:5000`
+
+⚠️ **Security Note**: Debug mode should NEVER be enabled in production environments as it allows arbitrary code execution through the debugger. Always run in production mode when deploying.
 
 ## 🎨 Design System
 
@@ -207,6 +216,18 @@ The application will be available at:
 - **Order Voiding**: Requires PIN verification (configurable)
 - **Settings Protection**: PIN-gated configuration access
 - **Session Management**: Secure authentication flow
+- **Debug Mode Control**: Environment-based debug configuration (disabled by default)
+- **SQL Injection Protection**: SQLAlchemy parameterized queries throughout
+- **Input Validation**: Server-side validation on all endpoints
+
+### Security Best Practices
+
+1. **Production Deployment**: Always run without debug mode (`python run.py`)
+2. **Set Master PIN**: Configure a strong master PIN on first run
+3. **Enable PIN for Voids**: Protect order voiding operations
+4. **Network Security**: Consider using HTTPS in production with a reverse proxy (nginx/Apache)
+5. **Database Backups**: Regularly backup posTable.db
+6. **Access Control**: Restrict network access to trusted devices only
 
 ## 📄 License
 
