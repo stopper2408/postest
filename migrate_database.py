@@ -28,9 +28,16 @@ def migrate_database():
         if 'created_at' not in columns:
             print("Adding 'created_at' column to orders table...")
             cursor.execute("ALTER TABLE orders ADD COLUMN created_at DATETIME")
-            # Update existing rows to have a timestamp
-            cursor.execute("UPDATE orders SET created_at = datetime('now') WHERE created_at IS NULL")
-            print("✓ Added 'created_at' column")
+            # Update existing rows to have timestamps with slight increments to preserve order
+            # This uses rowid to create incremental timestamps (1 second apart)
+            cursor.execute("""
+                UPDATE orders 
+                SET created_at = datetime('now', '-' || (
+                    (SELECT MAX(rowid) FROM orders) - rowid
+                ) || ' seconds')
+                WHERE created_at IS NULL
+            """)
+            print("✓ Added 'created_at' column with preserved order")
         
         if 'seat_number' not in columns:
             print("Adding 'seat_number' column to orders table...")

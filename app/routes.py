@@ -388,7 +388,7 @@ def transfer_table(fromTableId, toTableId):
                 return jsonify(success=False, error='Table not found')
             
             # Transfer orders
-            stmt = Select(Order).where(Order.table_id == fromTableId, Order.voided == False)
+            stmt = Select(Order).where(Order.table_id == fromTableId, Order.voided.is_(False))
             orders = session.execute(stmt).scalars().all()
             
             for order in orders:
@@ -510,13 +510,13 @@ def dashboard_stats():
         open_tables_count = len(open_tables)
         
         # Calculate revenue (completed orders)
-        stmt = Select(Order).join(Order.item).where(Order.status == 2, Order.voided == False)
+        stmt = Select(Order).join(Order.item).where(Order.status == 2, Order.voided.is_(False))
         completed_orders = session.execute(stmt).scalars().all()
         total_revenue = sum(order.quantity * order.item.price for order in completed_orders)
         
         # Count pending orders
         pending_orders_count = session.execute(
-            Select(Order).where(Order.status.in_([0, 1]), Order.voided == False)
+            Select(Order).where(Order.status.in_([0, 1]), Order.voided.is_(False))
         ).scalars().all()
         pending_orders_count = len(pending_orders_count)
         
@@ -540,7 +540,7 @@ def generate_receipt(tableId):
         # Get all non-voided orders
         stmt = Select(Order).join(Order.item).where(
             Order.table_id == tableId,
-            Order.voided == False
+            Order.voided.is_(False)
         )
         orders = session.execute(stmt).scalars().all()
         
@@ -595,7 +595,7 @@ def return_kitchen_orders_enhanced():
     with Session(engine) as session:
         stmt = Select(Order).join(Order.item).where(
             MenuItems.place_to_go == 'kitchen',
-            Order.voided == False
+            Order.voided.is_(False)
         )
         orders = session.execute(stmt).scalars().all()
         
@@ -634,7 +634,7 @@ def return_bar_orders_enhanced():
     with Session(engine) as session:
         stmt = Select(Order).join(Order.item).where(
             MenuItems.place_to_go == 'bar',
-            Order.voided == False
+            Order.voided.is_(False)
         )
         orders = session.execute(stmt).scalars().all()
         

@@ -19,6 +19,8 @@ class Cart {
             }
         } catch (error) {
             console.error('Failed to load seat selection setting:', error);
+            // Graceful degradation - seat selection remains disabled
+            this.seatSelectionEnabled = false;
         }
     }
 
