@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table {{ tableNumber }} - Order</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body style="padding-bottom: 80px;">
+    <!-- Sticky Navigation -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <h1 style="margin: 0;">Table {{ tableNumber }}</h1>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <span id="guest-count" class="badge badge-primary"></span>
+                <a href="/waiter_table_view" style="text-decoration: none;">
+                    <button class="btn btn-secondary btn-sm">← Back</button>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <!-- Category Navigation -->
+        <div id="categories-bar" style="margin: 1rem 0; display: flex; gap: 0.5rem; flex-wrap: wrap; position: sticky; top: 60px; background: var(--bg-primary); padding: 1rem 0; z-index: 100;">
+            <!-- Categories dynamically loaded -->
+        </div>
+
+        <!-- Main Content Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 400px; gap: 1.5rem;">
+            <!-- Menu Items -->
+            <div>
+                <div id="menu-items-grid" class="menu-grid">
+                    <!-- Menu items dynamically loaded -->
+                </div>
+            </div>
+
+            <!-- Cart Sidebar -->
+            <div>
+                <div class="card" style="position: sticky; top: 140px;">
+                    <div class="card-header">
+                        <h3 style="margin: 0;">Order Cart</h3>
+                    </div>
+                    <div id="cart-container" class="card-body">
+                        <!-- Cart items dynamically rendered by cart.js -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <div class="bottom-nav" style="display: flex !important;">
+        <div class="bottom-nav-content" style="width: 100%;">
+            <button class="btn btn-danger" onclick="closeTable()" style="flex: 1;">Close Table</button>
+            <button class="btn btn-warning" onclick="mainAway()" style="flex: 1;">Main Away</button>
+            <button class="btn btn-primary" onclick="viewReceipt()" style="flex: 1;">Receipt</button>
+        </div>
+    </div>
+
+    <!-- Guest Number Modal (shown on first load if not set) -->
+    <div id="guest-modal" class="modal-backdrop" style="display: none;">
+        <div class="modal">
+            <h2>Welcome to Table {{ tableNumber }}</h2>
+            <p style="color: #64748B; margin: 1rem 0;">How many guests are at this table?</p>
+            <div class="form-group">
+                <input type="number" id="guest-input" class="form-input" min="1" max="99" placeholder="Number of guests" autofocus>
+            </div>
+            <button class="btn btn-primary btn-lg w-full" onclick="submitGuests()">Continue</button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/cart.js') }}"></script>
+    <script>
+        const tableNumber = {{ tableNumber }};
+        let currentCategory = 'all';
+
+        // Check table status and guest count
+        async function checkTableStatus() {
+            try {
+                const response = await fetch(`/checker/tables/${tableNumber}`);
+                const data = await response.json();
+                
+                document.getElementById('guest-count').textContent = `${data.guests} guests`;
+                
+                // Show guest modal if no guests set and table is not occupied
+                if (data.guests === 0 && data.status === false) {
+                    document.getElementById('guest-modal').style.display = 'flex';
+                }
+            } catch (error) {
+                console.error('Failed to check table status:', error);
+            }
+        }
+
+        async function submitGuests() {
+            const guestInput = document.getElementById('guest-input');
+            const numberOfGuests = parseInt(guestInput.value);
+
+            if (isNaN(numberOfGuests) || numberOfGuests <= 0 || numberOfGuests >= 100) {
+                cart.showNotification('Please enter a valid number of guests (1-99)', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/modify_table/${tableNumber}?numberOfGuests=${numberOfGuests}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('guest-modal').style.display = 'none';
+                    document.getElementById('guest-count').textContent = `${numberOfGuests} guests`;
+                    cart.showNotification('Table opened successfully!', 'success');
+                } else {
+                    cart.showNotification('Failed to set guest count', 'danger');
+                }
+            } catch (error) {
+                cart.showNotification('Network error: ' + error.message, 'danger');
+            }
+        }
+
+        async function closeTable() {
+            if (!confirm('Are you sure you want to close this table? All orders will be cleared.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/close_table/${tableNumber}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    cart.showNotification('Table closed successfully', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/waiter_table_view';
+                    }, 1000);
+                } else {
+                    cart.showNotification('Failed to close table', 'danger');
+                }
+            } catch (error) {
+                cart.showNotification('Network error: ' + error.message, 'danger');
+            }
+        }
+
+        async function mainAway() {
+            try {
+                const response = await fetch(`/main_away_order/${tableNumber}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    cart.showNotification('Orders marked as ready to prepare', 'success');
+                } else {
+                    cart.showNotification('Failed to mark orders', 'danger');
+                }
+            } catch (error) {
+                cart.showNotification('Network error: ' + error.message, 'danger');
+            }
+        }
+
+        async function viewReceipt() {
+            try {
+                const response = await fetch(`/receipt/generate/${tableNumber}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    showReceiptModal(data.receipt);
+                } else {
+                    cart.showNotification('Failed to generate receipt', 'danger');
+                }
+            } catch (error) {
+                cart.showNotification('Network error: ' + error.message, 'danger');
+            }
+        }
+
+        function showReceiptModal(receipt) {
+            const modal = document.createElement('div');
+            modal.className = 'modal-backdrop';
+            modal.style.display = 'flex';
+            
+            let itemsHtml = '';
+            receipt.items.forEach(item => {
+                itemsHtml += `
+                    <div style="display: flex; justify-content: space-between; padding: 0.5rem 0;">
+                        <span>${item.name} × ${item.quantity}</span>
+                        <span class="price">$${item.total.toFixed(2)}</span>
+                    </div>
+                `;
+            });
+            
+            modal.innerHTML = `
+                <div class="modal" style="max-width: 500px;">
+                    <h2>Receipt - Table ${tableNumber}</h2>
+                    <p style="color: #64748B;">Guests: ${receipt.guests}</p>
+                    <div style="border-top: 2px solid var(--bg-accent); margin: 1rem 0; padding-top: 1rem;">
+                        ${itemsHtml}
+                    </div>
+                    <div style="border-top: 2px solid var(--slate-dark); margin: 1rem 0; padding-top: 1rem; display: flex; justify-content: space-between; font-size: 1.25rem; font-weight: 700;">
+                        <span>Total</span>
+                        <span class="price" style="color: var(--indigo-primary);">$${receipt.total.toFixed(2)}</span>
+                    </div>
+                    <button class="btn btn-secondary w-full" onclick="this.closest('.modal-backdrop').remove()">Close</button>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+
+        // Load menu categories
+        async function loadCategories() {
+            try {
+                const response = await fetch('/checker/menu_items/');
+                const menuItems = await response.json();
+                
+                const categories = [...new Set(menuItems.map(item => item.category))];
+                const categoriesBar = document.getElementById('categories-bar');
+                
+                categoriesBar.innerHTML = `
+                    <button class="btn btn-primary" onclick="loadMenu('all')">All</button>
+                `;
+                
+                categories.forEach(category => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-outline';
+                    btn.textContent = category;
+                    btn.onclick = () => loadMenu(category);
+                    categoriesBar.appendChild(btn);
+                });
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+            }
+        }
+
+        // Load menu items
+        async function loadMenu(category = 'all') {
+            currentCategory = category;
+            
+            try {
+                const response = await fetch('/checker/menu_items/');
+                const menuItems = await response.json();
+                
+                const filteredItems = category === 'all' 
+                    ? menuItems 
+                    : menuItems.filter(item => item.category === category);
+                
+                const menuGrid = document.getElementById('menu-items-grid');
+                menuGrid.innerHTML = '';
+                
+                filteredItems.forEach((item, index) => {
+                    const menuItem = document.createElement('div');
+                    menuItem.className = 'menu-item stagger-item';
+                    menuItem.style.animationDelay = `${index * 50}ms`;
+                    menuItem.innerHTML = `
+                        <div class="menu-item-name">${item.name}</div>
+                        ${item.subcategory ? `<div style="font-size: 0.75rem; color: #64748B;">${item.subcategory}</div>` : ''}
+                        <div class="menu-item-price">$${item.price.toFixed(2)}</div>
+                        <button class="btn btn-success btn-sm w-full" style="margin-top: 0.5rem;" 
+                                onclick="addToCart(${item.id}, '${item.name}', ${item.price})">
+                            Add to Cart
+                        </button>
+                    `;
+                    menuGrid.appendChild(menuItem);
+                });
+            } catch (error) {
+                console.error('Failed to load menu:', error);
+                cart.showNotification('Failed to load menu items', 'danger');
+            }
+        }
+
+        function addToCart(itemId, itemName, price) {
+            cart.addItem(itemId, itemName, price, 1);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkTableStatus();
+            loadCategories();
+            loadMenu('all');
+            cart.render();
+        });
+    </script>
+</body>
+</html>

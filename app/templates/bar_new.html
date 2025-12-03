@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bar View - PoS System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Sticky Navigation -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <h1 style="margin: 0;">🍹 Bar View</h1>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <span id="order-count" class="badge" style="background: linear-gradient(135deg, #8B5CF6, #7C3AED); color: white;">0 orders</span>
+                <a href="/login" style="text-decoration: none;">
+                    <button class="btn btn-secondary btn-sm">← Logout</button>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Filter Bar -->
+    <div class="container-fluid">
+        <div style="margin: 1rem 0; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button class="btn btn-primary" style="background: linear-gradient(135deg, #8B5CF6, #7C3AED);" onclick="filterOrders('all')">All Orders</button>
+            <button class="btn btn-outline" onclick="filterOrders(0)">Pending</button>
+            <button class="btn btn-outline" onclick="filterOrders(1)">Preparing</button>
+            <button class="btn btn-outline" onclick="filterOrders(2)">Completed</button>
+        </div>
+
+        <!-- Orders Grid with Auto-grouping -->
+        <div id="orders-container" class="grid grid-cols-2 gap-lg">
+            <!-- Orders dynamically loaded with grouping -->
+        </div>
+    </div>
+
+    <script>
+        let currentFilter = 'all';
+        let allOrders = [];
+
+        async function loadOrders() {
+            try {
+                const response = await fetch('/checker/orders/bar_enhanced');
+                allOrders = await response.json();
+                renderOrders();
+            } catch (error) {
+                console.error('Failed to load orders:', error);
+            }
+        }
+
+        function filterOrders(status) {
+            currentFilter = status;
+            renderOrders();
+        }
+
+        function renderOrders() {
+            const container = document.getElementById('orders-container');
+            
+            let filteredOrders = allOrders;
+            if (currentFilter !== 'all') {
+                filteredOrders = allOrders.filter(order => order.status === currentFilter);
+            }
+
+            // Update count
+            const totalDrinks = filteredOrders.reduce((sum, order) => sum + order.total_quantity, 0);
+            document.getElementById('order-count').textContent = `${totalDrinks} drinks`;
+
+            if (filteredOrders.length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: #64748B;">
+                        <h3>No orders to display</h3>
+                        <p>All caught up! 🎉</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '';
+
+            filteredOrders.forEach((order, index) => {
+                const card = document.createElement('div');
+                card.className = `order-card stagger-item`;
+                card.style.animationDelay = `${index * 50}ms`;
+                card.style.borderLeft = '4px solid #8B5CF6';
+                
+                // Status badge
+                let statusBadge = '';
+                if (order.status === 0) {
+                    statusBadge = '<span class="badge badge-warning">Pending</span>';
+                } else if (order.status === 1) {
+                    statusBadge = '<span class="badge" style="background: #8B5CF6; color: white;">Preparing</span>';
+                } else if (order.status === 2) {
+                    statusBadge = '<span class="badge badge-success">Completed</span>';
+                }
+
+                // Build table list
+                let tablesHtml = '';
+                order.tables.forEach(table => {
+                    tablesHtml += `
+                        <div style="display: flex; justify-content: space-between; padding: 0.25rem 0;">
+                            <span style="font-weight: 600;">Table ${table.table_id}</span>
+                            <span class="badge badge-primary">${table.quantity}x</span>
+                        </div>
+                    `;
+                });
+
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                        <div style="font-size: 1.25rem; font-weight: 700;">${order.name}</div>
+                        ${statusBadge}
+                    </div>
+                    
+                    <div style="background: var(--bg-accent); padding: 1rem; border-radius: var(--radius-lg); margin-bottom: 1rem;">
+                        <div class="quantity" style="font-size: 2rem; font-weight: 800; color: #8B5CF6; text-align: center;">
+                            ${order.total_quantity}x
+                        </div>
+                        <div style="text-align: center; font-size: 0.875rem; color: #64748B;">Total to Make</div>
+                    </div>
+
+                    <div style="margin-bottom: 1rem; font-size: 0.875rem;">
+                        <div style="font-weight: 600; margin-bottom: 0.5rem; color: #64748B;">Tables:</div>
+                        ${tablesHtml}
+                    </div>
+
+                    ${order.status !== 2 ? `
+                        <div style="display: flex; gap: 0.5rem;">
+                            ${order.tables.map(table => `
+                                <button class="btn btn-success btn-sm" style="flex: 1;" 
+                                        onclick="completeOrder(${table.order_id})">
+                                    ✓ T${table.table_id}
+                                </button>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        async function completeOrder(orderId) {
+            try {
+                const response = await fetch(`/complete_order/${orderId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Reload orders to refresh the grouped view
+                    await loadOrders();
+                    showNotification('Order marked as complete!', 'success');
+                }
+            } catch (error) {
+                console.error('Failed to complete order:', error);
+                showNotification('Failed to complete order', 'danger');
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                padding: 1rem 1.5rem;
+                background: white;
+                border-radius: var(--radius-lg);
+                box-shadow: var(--shadow-xl);
+                z-index: 9999;
+                animation: slideInRight 0.3s ease-out;
+            `;
+
+            let color = 'var(--success)';
+            if (type === 'danger') color = 'var(--danger)';
+
+            notification.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div style="width: 4px; height: 40px; background: ${color}; border-radius: 2px;"></div>
+                    <div>${message}</div>
+                </div>
+            `;
+
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease-out';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Auto-refresh every 5 seconds
+        setInterval(loadOrders, 5000);
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', loadOrders);
+    </script>
+</body>
+</html>
