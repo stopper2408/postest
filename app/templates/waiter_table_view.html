@@ -1,24 +1,32 @@
+<!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <title>Waiter Table View</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waiter - Table View</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-
-<div class="roboto-font">
-    <div>
-        <div class="container" style="justify-content: space-between; align-items: center;">
-            <h1>Tables</h1>
-            <a href="/login">
-                <button class="logout">Logout</button>
+<body>
+    <!-- Sticky Navigation with Glassmorphism -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <h1 style="margin: 0;">Tables</h1>
+            <a href="/login" style="text-decoration: none;">
+                <button class="btn btn-secondary btn-sm">← Logout</button>
             </a>
         </div>
-        <div class="container" id="boxContainer">
+    </nav>
+
+    <div class="container-fluid">
+        <div class="table-grid" id="boxContainer">
+            <!-- Tables will be dynamically inserted here -->
         </div>
     </div>
-</div>
+</body>
+</html>
 
 
 <script>
@@ -42,18 +50,27 @@
     }
     function createTableBox(i) {
         const newBox = document.createElement('div');
-        newBox.classList.add('box');
+        newBox.classList.add('table-card', 'stagger-item');
         newBox.id = i;
         newBox.classList.add('tableNumber' + i);
-        newBox.innerHTML = `Table` + i + `<br>This table is loading;`
+        newBox.innerHTML = `
+            <div class="table-status"></div>
+            <div class="table-number">Table ${i}</div>
+            <div class="table-guests">Loading...</div>
+        `;
         newBox.addEventListener('click', function () {
             if (newBox.classList.contains('not-available')) {
                 newBox.classList.add('is-confirming-now');
-                newBox.innerHTML = `<div class="confirmation-popup">
-                                        <h2>Would you like to open a new table?</h2>
-                                        <button class="confirm-button" onclick="buttonYes(` + i + `)">Yes</button>
-                                        <button class="confirm-button" onclick="buttonNo(` + i + `)">No</button>
-                                    </div>`
+                newBox.innerHTML = `
+                    <div style="text-align: center;">
+                        <h3>Open New Table?</h3>
+                        <p style="color: #64748B; margin: 1rem 0;">Table ${i} is currently empty</p>
+                        <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                            <button class="btn btn-success" onclick="buttonYes(${i})">Yes</button>
+                            <button class="btn btn-secondary" onclick="buttonNo(${i})">No</button>
+                        </div>
+                    </div>
+                `;
             } else if (newBox.classList.contains('available')) {
                 window.location.href = '/table_view/' + i;
             } else {
@@ -86,17 +103,36 @@
                         const boxToUpdate = document.querySelector('.tableNumber' + table.id);
                         if (boxToUpdate.classList.contains('is-confirming-now')) {
                             return; // This will prevent updating the table if the pop up window is open
-                        } else if (table.status == false) {
-                            boxToUpdate.innerHTML = 'Table ' + table.id + '<br>This table has ' + table.guests + ' guests<br>This table is not occupied';
+                        }
+                        
+                        const statusDot = boxToUpdate.querySelector('.table-status') || document.createElement('div');
+                        statusDot.className = 'table-status';
+                        
+                        if (table.status == false) {
+                            boxToUpdate.innerHTML = `
+                                <div class="table-status occupied"></div>
+                                <div class="table-number">Table ${table.id}</div>
+                                <div class="table-guests">${table.guests} guests</div>
+                                <div class="badge badge-danger">Not Occupied</div>
+                            `;
                             boxToUpdate.classList.add('not-available');
                             boxToUpdate.classList.remove('available');
                         } else if (table.status == true) { //false is when it is not occupied and true is when it is occupied
-                            boxToUpdate.innerHTML = 'Table ' + table.id + '<br>This table has ' + table.guests + ' guests<br>This table is occupied';
+                            boxToUpdate.innerHTML = `
+                                <div class="table-status available"></div>
+                                <div class="table-number">Table ${table.id}</div>
+                                <div class="table-guests">${table.guests} guests</div>
+                                <div class="badge badge-success">Occupied</div>
+                            `;
                             boxToUpdate.classList.add('available');
                             boxToUpdate.classList.remove('not-available');
                         }
                         else {
-                            boxToUpdate.innerHTML = 'Table ' + table.id + '<br>Table is not responding';
+                            boxToUpdate.innerHTML = `
+                                <div class="table-status pending"></div>
+                                <div class="table-number">Table ${table.id}</div>
+                                <div class="table-guests">Not Responding</div>
+                            `;
                         }
                     });
                 })
@@ -108,16 +144,30 @@
                 .then(data => {
                     boxToUpdate.classList.remove('is-confirming-now');
                     if (data.status == false) {
-                        boxToUpdate.innerHTML = 'Table ' + tableID + '<br>This table has ' + data.guests + ' guests<br>This table is not occupied';
+                        boxToUpdate.innerHTML = `
+                            <div class="table-status occupied"></div>
+                            <div class="table-number">Table ${tableID}</div>
+                            <div class="table-guests">${data.guests} guests</div>
+                            <div class="badge badge-danger">Not Occupied</div>
+                        `;
                         boxToUpdate.classList.add('not-available');
                         boxToUpdate.classList.remove('available');
                     } else if (data.status == true) { //false is when it is not occupied and true is when it is occupied
-                        boxToUpdate.innerHTML = 'Table ' + tableID + '<br>This table has ' + data.guests + ' guests<br>This table is occupied';
+                        boxToUpdate.innerHTML = `
+                            <div class="table-status available"></div>
+                            <div class="table-number">Table ${tableID}</div>
+                            <div class="table-guests">${data.guests} guests</div>
+                            <div class="badge badge-success">Occupied</div>
+                        `;
                         boxToUpdate.classList.add('available');
                         boxToUpdate.classList.remove('not-available');
                     }
                     else {
-                        boxToUpdate.innerHTML = 'Table ' + tableID + '<br>Table is not responding';
+                        boxToUpdate.innerHTML = `
+                            <div class="table-status pending"></div>
+                            <div class="table-number">Table ${tableID}</div>
+                            <div class="table-guests">Not Responding</div>
+                        `;
                     }
                 })
         }
@@ -129,95 +179,4 @@
         refreshTables(0);
     }, 10000);
 </script>
-
-<style>
-    .container {
-        display: flex;
-        gap: 15px;
-        flex-wrap: wrap;
-        padding: 20px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-    }
-
-    .box {
-        min-width: 400px;
-        flex-grow: 1;
-        flex-shrink: 0;
-        flex-basis: 0;
-        height: 200px;
-        background-color: #6B7280;
-        color: white;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        border-radius: 5px;
-        font-size: 1.2em;
-        font-weight: bold;
-        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
-        text-align: center;
-        flex-direction: column;
-        cursor: pointer;
-        transition-duration: 0.2s;
-    }
-
-    .box:hover {
-        opacity: 0.9;
-        transform: translateY(-4px) scale(1.02);
-        box-shadow: #2f333a 4px 4px 10px;
-    }
-
-    .logout {
-        margin-left: auto;
-        padding: 10px 20px;
-        background-color: #6c757d;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 1rm;
-        transition-duration: 0.2s;
-    }
-
-    .logout:hover {
-        background-color: #2f333a;
-        transform: translateY(-3px) scale(1.03);
-        box-shadow: #2f333a 4px 4px 10px;
-    }
-
-    .box.available {
-        background-color: #5cb85c;
-    }
-
-    .box.not-available {
-        background-color: #d9534f;
-    }
-
-    .roboto-font {
-        font-family: "Roboto", sans-serif;
-        font-optical-sizing: auto;
-        font-weight: 400;
-        font-style: normal;
-        font-variation-settings:
-            "wdth" 100;
-    }
-
-    .confirm-button {
-        margin: 10px;
-        padding: 10px 20px;
-        background-color: #ffffff;
-        color: #000000;
-        border: 2px solid #000000;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 1rem;
-        transition: background-color 0.2s, color 0.2s;
-    }
-
-    .confirm-button:hover {
-        background-color: #000000;
-        color: #ffffff;
-    }
-</style>
-
 </html>
